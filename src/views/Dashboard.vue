@@ -54,25 +54,6 @@
           </el-table>
         </el-card>
       </el-col>
-      
-      <el-col :span="12">
-        <el-card>
-          <template #header>
-            <span>Быстрый доступ</span>
-          </template>
-          <div class="quick-actions">
-            <el-button type="primary" :icon="Plus" @click="$router.push('/tables')">
-              Новая запись
-            </el-button>
-            <el-button :icon="Search" @click="$router.push('/tables')">
-              Поиск данных
-            </el-button>
-            <el-button :icon="TrendCharts" @click="$router.push('/analytics')">
-              Создать отчет
-            </el-button>
-          </div>
-        </el-card>
-      </el-col>
     </el-row>
   </div>
 </template>

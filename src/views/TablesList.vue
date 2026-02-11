@@ -46,13 +46,6 @@
             >
               <el-icon><Edit /></el-icon> Редактировать
             </el-button>
-            <el-button
-              type="info"
-              text
-              @click.stop="viewAnalytics(row.name)"
-            >
-              <el-icon><TrendCharts /></el-icon> Аналитика
-            </el-button>
           </template>
         </el-table-column>
       </el-table>

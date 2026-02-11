@@ -4,7 +4,7 @@
     <el-aside width="250px" class="sidebar">
       <div class="logo">
         <el-icon><DataAnalysis /></el-icon>
-        <span>PostgreSQL UI</span>
+        <span>DYN-IT PostgreSQL</span>
       </div>
       
       <el-menu
@@ -22,10 +22,6 @@
           <span>Таблицы</span>
         </el-menu-item>
         
-        <el-menu-item index="/analytics">
-          <el-icon><TrendCharts /></el-icon>
-          <span>Аналитика</span>
-        </el-menu-item>
       </el-menu>
     </el-aside>
 
