@@ -29,7 +29,7 @@
         />
         <el-select
           v-model="selectedColumn"
-          placeholder="Колонка"
+          placeholder="Колонка для поиска"
           style="width: 200px; margin-right: 10px;"
         >
           <el-option
@@ -47,16 +47,56 @@
         :data="tableData"
         style="width: 100%; margin-top: 20px;"
         border
+        :row-style="{ maxHeight: '60px' }"
+        :cell-style="{ padding: '8px' }"
       >
         <el-table-column
           v-for="column in columns"
           :key="column.column_name"
           :prop="column.column_name"
-          :label="column.column_name"
           :min-width="150"
         >
-          <template #default="{ row }">
-            {{ formatValue(row[column.column_name]) }}
+          <template #header>
+            <div 
+              @click="handleSort(column.column_name)"
+              style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px;"
+            >
+              <span>{{ column.column_name }}</span>
+              <span v-if="sortColumn === column.column_name">
+                <span v-if="sortOrder === 'asc'">↑</span>
+                <span v-else-if="sortOrder === 'desc'">↓</span>
+              </span>
+            </div>
+          </template>
+          <template #default="{ row, $index }">
+            <div 
+              v-if="expandedCells.has(`${$index}-${column.column_name}`)"
+              class="table-cell-expanded"
+            >
+              {{ formatValue(row[column.column_name]) }}
+              <el-icon 
+                class="expand-icon"
+                @click="toggleCellExpansion($index, column.column_name)"
+                style="cursor: pointer; margin-left: 8px;"
+              >
+                <component :is="'ArrowUp'" />
+              </el-icon>
+            </div>
+            <el-tooltip 
+              v-else
+              :content="String(row[column.column_name])"
+              placement="top"
+              :disabled="!row[column.column_name]"
+              popper-class="table-tooltip"
+            >
+              <div 
+                class="table-cell-content"
+                @click="toggleCellExpansion($index, column.column_name)"
+                style="cursor: pointer;"
+              >
+                {{ formatValue(row[column.column_name]) }}
+              </div>
+            </el-tooltip>
           </template>
         </el-table-column>
         
@@ -116,7 +156,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, Refresh, Search, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search, Edit, Delete, ArrowUp } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTableSchema, getTableData, createRow, updateRow, deleteRow } from '@/api/tables'
 
@@ -130,19 +170,137 @@ const rawTableData = ref([])
 const primaryKey = ref('id')
 const searchQuery = ref('')
 const selectedColumn = ref('')
+const sortColumn = ref('')
+const sortOrder = ref('') // '', 'asc', 'desc'
+const expandedCells = ref(new Set()) // Track expanded cells
 
-// Computed filtered data
+// Helper function to toggle cell expansion
+const toggleCellExpansion = (rowIndex, columnName) => {
+  const key = `${rowIndex}-${columnName}`
+  if (expandedCells.value.has(key)) {
+    expandedCells.value.delete(key)
+  } else {
+    expandedCells.value.add(key)
+  }
+}
+
+// Helper function to get column type
+const getColumnType = (columnName) => {
+  const column = columns.value.find(col => col.column_name === columnName)
+  return column && column.data_type ? String(column.data_type).toLowerCase() : 'text'
+}
+
+// Helper function to check if column is numeric
+const isNumericType = (dataType) => {
+  const numericTypes = ['integer', 'bigint', 'smallint', 'numeric', 'decimal', 'real', 'double precision', 'money', 'serial', 'bigserial', 'smallserial']
+  return numericTypes.includes(dataType)
+}
+
+// Helper function to check if column is date/time
+const isDateType = (dataType) => {
+  const dateTypes = ['date', 'timestamp', 'timestamp without time zone', 'timestamp with time zone', 'time', 'time without time zone', 'time with time zone']
+  return dateTypes.includes(dataType)
+}
+
+const isArrayType = (dataType) => {
+  return dataType === 'array' || dataType.endsWith('[]')
+}
+
+const detectPrimaryKey = (cols) => {
+  if (!Array.isArray(cols) || cols.length === 0) return 'id'
+
+  const byFlag = cols.find(col => col.is_primary_key)
+  if (byFlag?.column_name) return byFlag.column_name
+
+  const byDefault = cols.find(col => typeof col.column_default === 'string' && col.column_default.includes('nextval'))
+  if (byDefault?.column_name) return byDefault.column_name
+
+  const byName = cols.find(col => col.column_name === 'id')
+  if (byName?.column_name) return byName.column_name
+
+  const bySuffix = cols.find(col => col.column_name.endsWith('_id'))
+  if (bySuffix?.column_name) return bySuffix.column_name
+
+  return cols[0].column_name
+}
+
+const formatArrayForInput = (value) => {
+  if (!Array.isArray(value)) return value
+  const escaped = value.map(item => String(item).replace(/"/g, '\\"'))
+  return `{${escaped.map(item => `"${item}"`).join(',')}}`
+}
+
+const parseArrayFromInput = (value) => {
+  if (!value || typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return value
+  const inner = trimmed.slice(1, -1).trim()
+  if (!inner) return []
+  const parts = inner.split(/","/)
+  return parts.map(part => part.replace(/^"/, '').replace(/"$/, '').replace(/\\"/g, '"'))
+}
+
+// Computed filtered and sorted data
 const tableData = computed(() => {
-  if (!searchQuery.value || !selectedColumn.value) {
-    return rawTableData.value
+  let result = [...rawTableData.value]
+  
+  // Apply filtering
+  if (searchQuery.value && selectedColumn.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(row => {
+      const cellValue = row[selectedColumn.value]
+      if (cellValue === null || cellValue === undefined) return false
+      return String(cellValue).toLowerCase().includes(query)
+    })
   }
   
-  const query = searchQuery.value.toLowerCase()
-  return rawTableData.value.filter(row => {
-    const cellValue = row[selectedColumn.value]
-    if (cellValue === null || cellValue === undefined) return false
-    return String(cellValue).toLowerCase().includes(query)
-  })
+  // Apply sorting
+  if (sortColumn.value && sortOrder.value) {
+    const columnType = getColumnType(sortColumn.value)
+    
+    result.sort((a, b) => {
+      const aVal = a[sortColumn.value]
+      const bVal = b[sortColumn.value]
+      
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) return sortOrder.value === 'asc' ? 1 : -1
+      if (bVal === null || bVal === undefined) return sortOrder.value === 'asc' ? -1 : 1
+      
+      // Numeric comparison
+      if (isNumericType(columnType)) {
+        const aNum = Number(aVal)
+        const bNum = Number(bVal)
+        return sortOrder.value === 'asc' ? aNum - bNum : bNum - aNum
+      }
+      
+      // Date comparison
+      if (isDateType(columnType)) {
+        const aDate = new Date(aVal)
+        const bDate = new Date(bVal)
+        return sortOrder.value === 'asc' ? aDate - bDate : bDate - aDate
+      }
+      
+      // Boolean comparison
+      if (columnType === 'boolean') {
+        const aBool = aVal === true || aVal === 'true' || aVal === 't'
+        const bBool = bVal === true || bVal === 'true' || bVal === 't'
+        if (aBool === bBool) return 0
+        return sortOrder.value === 'asc' ? (aBool ? 1 : -1) : (aBool ? -1 : 1)
+      }
+      
+      // String comparison (default)
+      const aStr = String(aVal).toLowerCase()
+      const bStr = String(bVal).toLowerCase()
+      
+      if (sortOrder.value === 'asc') {
+        return aStr.localeCompare(bStr)
+      } else {
+        return bStr.localeCompare(aStr)
+      }
+    })
+  }
+  
+  return result
 })
 
 const pagination = ref({
@@ -160,9 +318,25 @@ const loadSchema = async () => {
     const response = await getTableSchema(schema.value, tableName.value)
     console.log('Schema response:', response)
     columns.value = response.data.columns
+    primaryKey.value = detectPrimaryKey(columns.value)
   } catch (error) {
     console.error('Schema error:', error)
     ElMessage.error('Ошибка загрузки схемы таблицы')
+  }
+}
+
+const handleSort = (columnName) => {
+  if (sortColumn.value === columnName) {
+    // Cycle through: asc -> desc -> none
+    if (sortOrder.value === 'asc') {
+      sortOrder.value = 'desc'
+    } else if (sortOrder.value === 'desc') {
+      sortOrder.value = ''
+      sortColumn.value = ''
+    }
+  } else {
+    sortColumn.value = columnName
+    sortOrder.value = 'asc'
   }
 }
 
@@ -200,18 +374,34 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
   dialogMode.value = 'edit'
-  formData.value = { ...row }
+  const data = {}
+  columns.value.forEach(col => {
+    const type = getColumnType(col.column_name)
+    const value = row[col.column_name]
+    data[col.column_name] = isArrayType(type) ? formatArrayForInput(value) : value
+  })
+  formData.value = data
   dialogVisible.value = true
 }
 
 const handleSave = async () => {
   try {
+    const payload = { ...formData.value }
+    columns.value.forEach(col => {
+      const type = getColumnType(col.column_name)
+      if (isArrayType(type)) {
+        payload[col.column_name] = parseArrayFromInput(payload[col.column_name])
+      }
+    })
+
     if (dialogMode.value === 'add') {
-      await createRow(schema.value, tableName.value, formData.value)
+        console.log('Creating new row with payload:', payload)
+      await createRow(schema.value, tableName.value, payload)
       ElMessage.success('Запись добавлена')
     } else {
-      const id = formData.value[primaryKey.value]
-      await updateRow(schema.value, tableName.value, id, formData.value)
+      const id = payload[primaryKey.value]
+      console.log('Updating row with ID:', primaryKey, 'Payload:', payload)
+      await updateRow(schema.value, tableName.value, id, payload)
       ElMessage.success('Запись обновлена')
     }
     
@@ -277,5 +467,56 @@ onMounted(async () => {
 .filters {
   display: flex;
   align-items: center;
+}
+
+:deep(.el-table__cell) {
+  text-align: left !important;
+}
+
+.table-cell-content {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.table-cell-expanded {
+  white-space: normal;
+  word-break: break-word;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.expand-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+:deep(.table-tooltip) {
+  max-width: 500px !important;
+}
+
+:deep(.table-tooltip .el-popper__content) {
+  word-break: break-word;
+  white-space: normal;
+}
+
+:deep(.el-popper.is-dark[role="tooltip"]) {
+  max-width: 500px !important;
+}
+
+:deep(.el-tooltip__popper) {
+  max-width: 500px !important;
+}
+</style>
+
+<style>
+.table-tooltip,
+.table-tooltip .el-popper,
+.table-tooltip.el-tooltip__popper {
+  max-width: 500px !important;
+  width: 500px !important;
 }
 </style>

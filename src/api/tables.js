@@ -1,8 +1,13 @@
 import axios from './axios'
 
+// Get all schemas
+export const getSchemasList = () => {
+  return axios.get('/tables/schemas')
+}
+
 // Get all tables
-export const getTablesList = () => {
-  return axios.get('/tables')
+export const getTablesList = (schema = 'public') => {
+  return axios.get(`/tables/${schema}`)
 }
 
 // Get table schema

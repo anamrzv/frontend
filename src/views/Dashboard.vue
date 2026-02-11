@@ -1,5 +1,22 @@
 <template>
   <div class="dashboard">
+    <!-- Schema Selector -->
+    <div style="margin-bottom: 20px;">
+      <el-select 
+        v-model="selectedSchema" 
+        placeholder="Выберите схему"
+        @change="onSchemaChange"
+        style="width: 300px;"
+      >
+        <el-option
+          v-for="schema in schemas"
+          :key="schema"
+          :label="schema"
+          :value="schema"
+        />
+      </el-select>
+    </div>
+
     <el-row :gutter="20">
       <el-col :span="6">
         <el-card class="stat-card">
@@ -10,48 +27,6 @@
             <div class="stat-info">
               <div class="stat-value">{{ stats.tableCount }}</div>
               <div class="stat-label">Таблиц</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <el-icon class="stat-icon" :size="40" color="#67C23A">
-              <Document />
-            </el-icon>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.totalRecords }}</div>
-              <div class="stat-label">Записей</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <el-icon class="stat-icon" :size="40" color="#E6A23C">
-              <Connection />
-            </el-icon>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.dbSize }}</div>
-              <div class="stat-label">Размер БД</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <el-icon class="stat-icon" :size="40" color="#F56C6C">
-              <Calendar />
-            </el-icon>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.lastUpdate }}</div>
-              <div class="stat-label">Последнее обновление</div>
             </div>
           </div>
         </el-card>
@@ -68,8 +43,7 @@
             </div>
           </template>
           <el-table :data="recentTables" style="width: 100%">
-            <el-table-column prop="table_name" label="Таблица" />
-            <el-table-column prop="row_count" label="Записей" width="100" />
+            <el-table-column prop="name" label="Таблица" />
             <el-table-column label="Действия" width="100">
               <template #default="{ row }">
                 <el-button text type="primary" @click="openTable(row.table_name)">
@@ -107,35 +81,55 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Grid, Document, Connection, Calendar, Plus, Search, TrendCharts } from '@element-plus/icons-vue'
-import { getTablesList } from '@/api/tables'
+import { getSchemasList, getTablesList } from '@/api/tables'
+import { useSchemaStore } from '@/stores/schema'
 
 const router = useRouter()
+const schemaStore = useSchemaStore()
+
+const schemas = ref([])
+const selectedSchema = ref(schemaStore.selectedSchema)
 
 const stats = ref({
-  tableCount: 0,
-  totalRecords: 0,
-  dbSize: '0 MB',
-  lastUpdate: 'N/A'
+  tableCount: 0
 })
 
 const recentTables = ref([])
 
+const loadSchemas = async () => {
+  try {
+    const response = await getSchemasList()
+    schemas.value = response.data
+    if (!response.data.includes(selectedSchema.value)) {
+      selectedSchema.value = response.data[0] || 'public'
+    }
+  } catch (error) {
+    console.error('Error loading schemas:', error)
+  }
+}
+
 const loadData = async () => {
   try {
-    const response = await getTablesList()
+    const response = await getTablesList(selectedSchema.value)
     stats.value.tableCount = response.data.length
-    recentTables.value = response.data.data.slice(0, 5)
+    recentTables.value = response.data.slice(0, 5)
   } catch (error) {
     console.error('Error loading dashboard data:', error)
   }
 }
 
-const openTable = (tableName) => {
-  router.push(`/table/${tableName}`)
+const onSchemaChange = () => {
+  schemaStore.setSchema(selectedSchema.value)
+  loadData()
 }
 
-onMounted(() => {
-  loadData()
+const openTable = (tableName) => {
+  router.push(`/table/${selectedSchema.value}/${tableName}`)
+}
+
+onMounted(async () => {
+  await loadSchemas()
+  await loadData()
 })
 </script>
 

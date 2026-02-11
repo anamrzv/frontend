@@ -4,13 +4,15 @@
       <template #header>
         <div class="card-header">
           <span>Список таблиц</span>
-          <el-input
-            v-model="searchQuery"
-            placeholder="Поиск таблиц..."
-            style="width: 300px;"
-            :prefix-icon="Search"
-            clearable
-          />
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <el-input
+              v-model="searchQuery"
+              placeholder="Поиск таблиц..."
+              style="width: 300px;"
+              :prefix-icon="Search"
+              clearable
+            />
+          </div>
         </div>
       </template>
 
@@ -59,13 +61,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Grid, Edit, TrendCharts } from '@element-plus/icons-vue'
 import { getTablesList } from '@/api/tables'
+import { useSchemaStore } from '@/stores/schema'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const schemaStore = useSchemaStore()
 
 const loading = ref(false)
 const searchQuery = ref('')
@@ -74,15 +78,16 @@ const tables = ref([])
 const filteredTables = computed(() => {
   if (!searchQuery.value) return tables.value
   
+  const query = searchQuery.value.toLowerCase()
   return tables.value.filter(table =>
-    table.table_name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    table.name.toLowerCase().includes(query)
   )
 })
 
 const loadTables = async () => {
   loading.value = true
   try {
-    const response = await getTablesList()
+    const response = await getTablesList(schemaStore.selectedSchema)
     tables.value = response.data
   } catch (error) {
     ElMessage.error('Ошибка загрузки таблиц')
@@ -96,15 +101,15 @@ const openTable = (schema, tableName) => {
   router.push(`/table/${schema}/${tableName}`)
 }
 
-// const viewAnalytics = (schema, tableName) => {
-//   router.push(`/analytics/${schema}/${tableName}`)
-// }
-
 const handleRowClick = (row) => {
-  openTable(row.schema, row.name)
+  openTable(schemaStore.selectedSchema, row.name)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadTables()
+})
+
+watch(() => schemaStore.selectedSchema, () => {
   loadTables()
 })
 </script>
