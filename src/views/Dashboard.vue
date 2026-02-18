@@ -21,7 +21,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <el-icon class="stat-icon" :size="40" color="#5277F6">
+            <el-icon class="stat-icon" :size="40" color="#915af0">
               <Grid />
             </el-icon>
             <div class="stat-info">
@@ -123,6 +123,7 @@ onMounted(async () => {
 
 .stat-card {
   height: 120px;
+  border-top: 3px solid var(--color-violet);
 }
 
 .stat-content {
@@ -138,20 +139,23 @@ onMounted(async () => {
 
 .stat-value {
   font-size: 28px;
-  font-weight: bold;
-  color: #303133;
+  font-weight: 600;
+  color: var(--color-secondary);
   margin-bottom: 5px;
 }
 
 .stat-label {
   font-size: 14px;
   color: #909399;
+  font-weight: 500;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  color: var(--color-secondary);
 }
 
 .quick-actions {

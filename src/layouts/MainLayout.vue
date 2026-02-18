@@ -75,6 +75,7 @@ const pageTitle = computed(() => {
 .sidebar {
   background-color: #0B1B5B;
   color: #fff;
+  border-right: 3px solid var(--color-teal, #28aaa0);
 }
 
 .logo {
@@ -87,6 +88,17 @@ const pageTitle = computed(() => {
   font-weight: bold;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.logo::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-teal, #28aaa0), var(--color-violet, #915af0));
 }
 
 .sidebar-menu {

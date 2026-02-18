@@ -63,8 +63,8 @@
             >
               <span>{{ column.column_name }}</span>
               <span v-if="sortColumn === column.column_name">
-                <span v-if="sortOrder === 'asc'">↑</span>
-                <span v-else-if="sortOrder === 'desc'">↓</span>
+                <span v-if="sortOrder === 'asc'" style="color: var(--color-teal);">↑</span>
+                <span v-else-if="sortOrder === 'desc'" style="color: var(--color-teal);">↓</span>
               </span>
             </div>
           </template>
@@ -478,6 +478,8 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  color: var(--color-secondary);
 }
 
 .header-actions {
@@ -492,6 +494,40 @@ onMounted(async () => {
 
 :deep(.el-table__cell) {
   text-align: left !important;
+}
+
+:deep(.el-table__header-wrapper th) {
+  background-color: rgba(11, 27, 91, 0.04) !important;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+:deep(.el-table__fixed-right) {
+  background-color: #fff;
+}
+
+:deep(.el-table__fixed-right .el-table__cell),
+:deep(.el-table td.el-table-fixed-column--right),
+:deep(.el-table th.el-table-fixed-column--right) {
+  background-color: #fff !important;
+}
+
+:deep(.el-table tr:hover td.el-table-fixed-column--right) {
+  background-color: #f5f7fa !important;
+}
+
+:deep(.sort-indicator) {
+  color: var(--color-teal);
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  background-color: var(--color-violet);
+  color: #fff;
+}
+
+:deep(.el-pagination .btn-prev:hover),
+:deep(.el-pagination .btn-next:hover) {
+  color: var(--color-violet);
 }
 
 .table-cell-content {

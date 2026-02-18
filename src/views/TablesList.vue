@@ -25,14 +25,14 @@
       >
         <el-table-column prop="table_name" label="Таблица" width="300">
           <template #default="{ row }">
-            <el-icon><Grid /></el-icon>
+            <el-icon color="#28aaa0"><Grid /></el-icon>
             <span style="margin-left: 10px;">{{ row.name }}</span>
           </template>
         </el-table-column>
         
         <el-table-column prop="table_schema" label="Схема" width="150">
           <template #default="{ row }">
-            <el-icon><Grid /></el-icon>
+            <el-icon color="#915af0"><Grid /></el-icon>
             <span style="margin-left: 10px;">{{ row.schema }}</span>
           </template>
         </el-table-column>
@@ -108,6 +108,8 @@ watch(() => schemaStore.selectedSchema, loadTables)
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  color: var(--color-secondary);
 }
 
 .clickable-table :deep(.el-table__row) {
@@ -116,5 +118,9 @@ watch(() => schemaStore.selectedSchema, loadTables)
 
 .clickable-table :deep(.el-table__row:hover) {
   background-color: #f5f7fa;
+}
+
+.clickable-table :deep(.el-table__row:hover td) {
+  background-color: rgba(40, 170, 160, 0.06) !important;
 }
 </style>
