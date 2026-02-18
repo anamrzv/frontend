@@ -46,7 +46,7 @@
             <el-table-column prop="name" label="Таблица" />
             <el-table-column label="Действия" width="100">
               <template #default="{ row }">
-                <el-button text type="primary" @click="openTable(row.table_name)">
+                <el-button text type="primary" @click="openTable(row.name)">
                   Открыть
                 </el-button>
               </template>
@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Grid, Document, Connection, Calendar, Plus, Search, TrendCharts } from '@element-plus/icons-vue'
 import { getSchemasList, getTablesList } from '@/api/tables'
@@ -89,11 +89,87 @@ const loadSchemas = async () => {
   }
 }
 
+// Helper function to log table access
+const logTableAccess = (tableName) => {
+  // Validate tableName
+  if (!tableName || tableName === 'undefined' || tableName === 'null') {
+    console.warn('Invalid table name:', tableName)
+    return
+  }
+
+  const key = `table_access_${selectedSchema.value}`
+  let history = []
+  
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      history = JSON.parse(stored)
+      // Clean up invalid entries
+      history = history.filter(t => t && t !== 'undefined' && t !== 'null' && typeof t === 'string')
+    }
+  } catch (e) {
+    console.error('Error reading localStorage:', e)
+  }
+  
+  // Remove if exists and add to beginning (most recent)
+  history = history.filter(t => t !== tableName)
+  history.unshift(tableName)
+  
+  // Keep only last 20
+  history = history.slice(0, 20)
+  
+  try {
+    localStorage.setItem(key, JSON.stringify(history))
+  } catch (e) {
+    console.error('Error writing to localStorage:', e)
+  }
+}
+
 const loadData = async () => {
+  console.log('Dashboard: loadData called')
   try {
     const response = await getTablesList(selectedSchema.value)
-    stats.value.tableCount = response.data.length
-    recentTables.value = response.data.slice(0, 5)
+    const allTables = response.data
+    stats.value.tableCount = allTables.length
+    
+    // Get access history from localStorage
+    const key = `table_access_${selectedSchema.value}`
+    let history = []
+    
+    try {
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        history = JSON.parse(stored)
+        // Clean up invalid entries
+        history = history.filter(t => t && t !== 'undefined' && t !== 'null' && typeof t === 'string')
+        // Save cleaned history back
+        localStorage.setItem(key, JSON.stringify(history))
+      }
+      console.log('Dashboard: cleaned history:', history)
+    } catch (e) {
+      console.error('Error reading localStorage:', e)
+    }
+    
+    // Sort tables by access history
+    const sorted = allTables.sort((a, b) => {
+      const aIndex = history.indexOf(a.name)  // Changed from a.table_name to a.name
+      const bIndex = history.indexOf(b.name)  // Changed from b.table_name to b.name
+      
+      // If both in history, sort by history position
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex
+      }
+      
+      // If only one in history, it comes first
+      if (aIndex !== -1) return -1
+      if (bIndex !== -1) return 1
+      
+      // Otherwise keep original order
+      return 0
+    })
+    
+    console.log('Dashboard: sorted tables:', sorted.slice(0, 5).map(t => t.name))
+    recentTables.value = sorted.slice(0, 5)
   } catch (error) {
     console.error('Error loading dashboard data:', error)
   }
@@ -105,11 +181,22 @@ const onSchemaChange = () => {
 }
 
 const openTable = (tableName) => {
+  logTableAccess(tableName)
   router.push(`/table/${selectedSchema.value}/${tableName}`)
 }
 
 onMounted(async () => {
   await loadSchemas()
+  await loadData()
+})
+
+// Refresh data when returning to dashboard
+onActivated(async () => {
+  await loadData()
+})
+
+// Watch for table access updates from other components
+watch(() => schemaStore.tableAccessUpdated, async () => {
   await loadData()
 })
 </script>

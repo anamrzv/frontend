@@ -180,10 +180,13 @@ import { useRoute } from 'vue-router'
 import { Plus, Refresh, Search, Edit, Delete, ArrowUp } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTableSchema, getTableData, createRow, updateRow, deleteRow } from '@/api/tables'
+import { useSchemaStore } from '@/stores/schema'
 
 const route = useRoute()
 const schema = ref(route.params.schema)
 const tableName = ref(route.params.tableName)
+
+const schemaStore = useSchemaStore()
 
 const loading = ref(false)
 const columns = ref([])
@@ -518,7 +521,38 @@ const formatValue = (value) => {
   return value
 }
 
+// Helper function to log table access
+const logTableAccess = () => {
+  const key = `table_access_${schema.value}`
+  let history = []
+  
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      history = JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('Error reading localStorage:', e)
+  }
+  
+  // Remove if exists and add to beginning (most recent)
+  history = history.filter(t => t !== tableName.value)
+  history.unshift(tableName.value)
+  
+  // Keep only last 20
+  history = history.slice(0, 20)
+  
+  try {
+    localStorage.setItem(key, JSON.stringify(history))
+    // Trigger update in other components
+    schemaStore.triggerTableAccessUpdate()
+  } catch (e) {
+    console.error('Error writing to localStorage:', e)
+  }
+}
+
 onMounted(async () => {
+  logTableAccess()
   await loadSchema()
   await loadData()
 })

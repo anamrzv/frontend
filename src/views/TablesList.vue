@@ -90,12 +90,44 @@ const loadTables = async () => {
   }
 }
 
+// Helper function to log table access
+const logTableAccess = (schema, tableName) => {
+  const key = `table_access_${schema}`
+  let history = []
+  
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      history = JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('Error reading localStorage:', e)
+  }
+  
+  // Remove if exists and add to beginning (most recent)
+  history = history.filter(t => t !== tableName)
+  history.unshift(tableName)
+  
+  // Keep only last 20
+  history = history.slice(0, 20)
+  
+  try {
+    localStorage.setItem(key, JSON.stringify(history))
+    // Trigger update in other components
+    schemaStore.triggerTableAccessUpdate()
+  } catch (e) {
+    console.error('Error writing to localStorage:', e)
+  }
+}
+
 const openTable = (schema, tableName) => {
+  logTableAccess(schema, tableName)
   router.push(`/table/${schema}/${tableName}`)
 }
 
 const handleRowClick = (row) => {
-  openTable(schemaStore.selectedSchema, row.name)
+  logTableAccess(schemaStore.selectedSchema, row.name)
+  router.push(`/table/${schemaStore.selectedSchema}/${row.name}`)
 }
 
 onMounted(async () => {
