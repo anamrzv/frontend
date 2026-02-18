@@ -21,7 +21,12 @@
           <el-icon><Grid /></el-icon>
           <span>Таблицы</span>
         </el-menu-item>
-        
+
+        <el-menu-item index="/forms">
+          <el-icon><Document /></el-icon>
+          <span>Формы</span>
+        </el-menu-item>
+
       </el-menu>
     </el-aside>
 
@@ -51,7 +56,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Odometer, Grid, TrendCharts, Bell, Setting, DataAnalysis } from '@element-plus/icons-vue'
+import { Odometer, Grid, TrendCharts, Bell, Setting, DataAnalysis, Document } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -61,6 +66,7 @@ const pageTitle = computed(() => {
   const titles = {
     '/': 'Дашборд',
     '/tables': 'Таблицы',
+    '/forms': 'Формы',
     '/analytics': 'Аналитика'
   }
   return titles[route.path] || 'PostgreSQL UI'

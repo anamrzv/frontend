@@ -20,6 +20,11 @@ const routes = [
         path: '/table/:schema/:tableName',
         name: 'TableEditor',
         component: () => import('@/views/TableEditor.vue')
+      },
+      {
+        path: '/forms',
+        name: 'Forms',
+        component: () => import('@/views/Forms.vue')
       }
     ]
   }
