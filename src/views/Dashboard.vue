@@ -21,7 +21,7 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <el-icon class="stat-icon" :size="40" color="#409EFF">
+            <el-icon class="stat-icon" :size="40" color="#5277F6">
               <Grid />
             </el-icon>
             <div class="stat-info">
@@ -59,22 +59,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onActivated, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Grid, Document, Connection, Calendar, Plus, Search, TrendCharts } from '@element-plus/icons-vue'
+import { Grid } from '@element-plus/icons-vue'
 import { getSchemasList, getTablesList } from '@/api/tables'
 import { useSchemaStore } from '@/stores/schema'
+import { useTableHistory } from '@/composables/useTableHistory'
 
 const router = useRouter()
 const schemaStore = useSchemaStore()
+const { logTableAccess, getSortedByHistory } = useTableHistory()
 
 const schemas = ref([])
 const selectedSchema = ref(schemaStore.selectedSchema)
-
-const stats = ref({
-  tableCount: 0
-})
-
+const stats = ref({ tableCount: 0 })
 const recentTables = ref([])
 
 const loadSchemas = async () => {
@@ -84,94 +82,19 @@ const loadSchemas = async () => {
     if (!response.data.includes(selectedSchema.value)) {
       selectedSchema.value = response.data[0] || 'public'
     }
-  } catch (error) {
-    console.error('Error loading schemas:', error)
-  }
-}
-
-// Helper function to log table access
-const logTableAccess = (tableName) => {
-  // Validate tableName
-  if (!tableName || tableName === 'undefined' || tableName === 'null') {
-    console.warn('Invalid table name:', tableName)
-    return
-  }
-
-  const key = `table_access_${selectedSchema.value}`
-  let history = []
-  
-  try {
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      history = JSON.parse(stored)
-      // Clean up invalid entries
-      history = history.filter(t => t && t !== 'undefined' && t !== 'null' && typeof t === 'string')
-    }
-  } catch (e) {
-    console.error('Error reading localStorage:', e)
-  }
-  
-  // Remove if exists and add to beginning (most recent)
-  history = history.filter(t => t !== tableName)
-  history.unshift(tableName)
-  
-  // Keep only last 20
-  history = history.slice(0, 20)
-  
-  try {
-    localStorage.setItem(key, JSON.stringify(history))
-  } catch (e) {
-    console.error('Error writing to localStorage:', e)
+  } catch {
+    // ignore
   }
 }
 
 const loadData = async () => {
-  console.log('Dashboard: loadData called')
   try {
     const response = await getTablesList(selectedSchema.value)
     const allTables = response.data
     stats.value.tableCount = allTables.length
-    
-    // Get access history from localStorage
-    const key = `table_access_${selectedSchema.value}`
-    let history = []
-    
-    try {
-      const stored = localStorage.getItem(key)
-      if (stored) {
-        history = JSON.parse(stored)
-        // Clean up invalid entries
-        history = history.filter(t => t && t !== 'undefined' && t !== 'null' && typeof t === 'string')
-        // Save cleaned history back
-        localStorage.setItem(key, JSON.stringify(history))
-      }
-      console.log('Dashboard: cleaned history:', history)
-    } catch (e) {
-      console.error('Error reading localStorage:', e)
-    }
-    
-    // Sort tables by access history
-    const sorted = allTables.sort((a, b) => {
-      const aIndex = history.indexOf(a.name)  // Changed from a.table_name to a.name
-      const bIndex = history.indexOf(b.name)  // Changed from b.table_name to b.name
-      
-      // If both in history, sort by history position
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex
-      }
-      
-      // If only one in history, it comes first
-      if (aIndex !== -1) return -1
-      if (bIndex !== -1) return 1
-      
-      // Otherwise keep original order
-      return 0
-    })
-    
-    console.log('Dashboard: sorted tables:', sorted.slice(0, 5).map(t => t.name))
-    recentTables.value = sorted.slice(0, 5)
-  } catch (error) {
-    console.error('Error loading dashboard data:', error)
+    recentTables.value = getSortedByHistory(allTables, selectedSchema.value).slice(0, 5)
+  } catch {
+    // ignore
   }
 }
 
@@ -181,22 +104,14 @@ const onSchemaChange = () => {
 }
 
 const openTable = (tableName) => {
-  logTableAccess(tableName)
+  logTableAccess(selectedSchema.value, tableName)
   router.push(`/table/${selectedSchema.value}/${tableName}`)
 }
 
+watch(() => schemaStore.tableAccessUpdated, loadData)
+
 onMounted(async () => {
   await loadSchemas()
-  await loadData()
-})
-
-// Refresh data when returning to dashboard
-onActivated(async () => {
-  await loadData()
-})
-
-// Watch for table access updates from other components
-watch(() => schemaStore.tableAccessUpdated, async () => {
   await loadData()
 })
 </script>

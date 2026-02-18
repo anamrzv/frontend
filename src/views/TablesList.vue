@@ -56,13 +56,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Grid, Edit, TrendCharts } from '@element-plus/icons-vue'
+import { Search, Grid, Edit } from '@element-plus/icons-vue'
 import { getTablesList } from '@/api/tables'
 import { useSchemaStore } from '@/stores/schema'
 import { ElMessage } from 'element-plus'
+import { useTableHistory } from '@/composables/useTableHistory'
 
 const router = useRouter()
 const schemaStore = useSchemaStore()
+const { logTableAccess } = useTableHistory()
 
 const loading = ref(false)
 const searchQuery = ref('')
@@ -70,11 +72,8 @@ const tables = ref([])
 
 const filteredTables = computed(() => {
   if (!searchQuery.value) return tables.value
-  
   const query = searchQuery.value.toLowerCase()
-  return tables.value.filter(table =>
-    table.name.toLowerCase().includes(query)
-  )
+  return tables.value.filter(table => table.name.toLowerCase().includes(query))
 })
 
 const loadTables = async () => {
@@ -82,41 +81,10 @@ const loadTables = async () => {
   try {
     const response = await getTablesList(schemaStore.selectedSchema)
     tables.value = response.data
-  } catch (error) {
+  } catch {
     ElMessage.error('Ошибка загрузки таблиц')
-    console.error('Error loading tables:', error)
   } finally {
     loading.value = false
-  }
-}
-
-// Helper function to log table access
-const logTableAccess = (schema, tableName) => {
-  const key = `table_access_${schema}`
-  let history = []
-  
-  try {
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      history = JSON.parse(stored)
-    }
-  } catch (e) {
-    console.error('Error reading localStorage:', e)
-  }
-  
-  // Remove if exists and add to beginning (most recent)
-  history = history.filter(t => t !== tableName)
-  history.unshift(tableName)
-  
-  // Keep only last 20
-  history = history.slice(0, 20)
-  
-  try {
-    localStorage.setItem(key, JSON.stringify(history))
-    // Trigger update in other components
-    schemaStore.triggerTableAccessUpdate()
-  } catch (e) {
-    console.error('Error writing to localStorage:', e)
   }
 }
 
@@ -125,18 +93,10 @@ const openTable = (schema, tableName) => {
   router.push(`/table/${schema}/${tableName}`)
 }
 
-const handleRowClick = (row) => {
-  logTableAccess(schemaStore.selectedSchema, row.name)
-  router.push(`/table/${schemaStore.selectedSchema}/${row.name}`)
-}
+const handleRowClick = (row) => openTable(row.schema, row.name)
 
-onMounted(async () => {
-  await loadTables()
-})
-
-watch(() => schemaStore.selectedSchema, () => {
-  loadTables()
-})
+onMounted(loadTables)
+watch(() => schemaStore.selectedSchema, loadTables)
 </script>
 
 <style scoped>

@@ -73,7 +73,7 @@ const pageTitle = computed(() => {
 }
 
 .sidebar {
-  background-color: #001529;
+  background-color: #0B1B5B;
   color: #fff;
 }
 
@@ -91,7 +91,7 @@ const pageTitle = computed(() => {
 
 .sidebar-menu {
   border-right: none;
-  background-color: #001529;
+  background-color: #0B1B5B;
 }
 
 .sidebar-menu .el-menu-item {
@@ -104,7 +104,7 @@ const pageTitle = computed(() => {
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  background-color: #1890ff;
+  background-color: #5277F6;
   color: #fff;
 }
 
