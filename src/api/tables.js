@@ -45,7 +45,3 @@ export const deleteRow = (schema, tableName, id) => {
   return axios.delete(`/data/${schema}/${tableName}/${id}`)
 }
 
-// Bulk create
-export const bulkCreate = (schema, tableName, rows) => {
-  return axios.post(`/data/${schema}/${tableName}/bulk`, { rows })
-}

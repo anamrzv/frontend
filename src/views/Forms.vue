@@ -28,7 +28,19 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="Полное имя" prop="fullName">
-              <el-input v-model="form.fullName" placeholder="Иванов Иван Иванович" />
+              <el-select
+                v-model="form.fullName"
+                placeholder="Выберите имя"
+                filterable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="name in fullNameOptions"
+                  :key="name"
+                  :label="name"
+                  :value="name"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -54,6 +66,7 @@
                   :label="opt"
                   :value="opt"
                 />
+
               </el-select>
             </el-form-item>
           </el-col>
@@ -190,14 +203,28 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Plus, Close } from '@element-plus/icons-vue'
+import { sendNewProject, getFullNames, getProjectNames } from '@/api/forms'
 
 const dialogVisible = ref(false)
 const formRef = ref(null)
 
-const projectOptions = ['Other']
+const fullNameOptions = ref([])
+const projectOptions = ref([])
+
+const loadOptions = async () => {
+  try {
+    const [devsRes, projRes] = await Promise.all([getFullNames(), getProjectNames()])
+    fullNameOptions.value = devsRes.data
+    projectOptions.value = ['Other', ...projRes.data]
+  } catch {
+    ElMessage.error('Ошибка загрузки данных для выпадающих списков')
+  }
+}
+
+onMounted(loadOptions)
 
 const emptyForm = () => ({
   fullName: '',
@@ -267,6 +294,11 @@ const removeItem = (field, idx) => {
   }
 }
 
+const toPgArray = (arr) => {
+  const escaped = arr.map(v => `"${v.replace(/"/g, '\\"')}"`)
+  return `{${escaped.join(',')}}`
+}
+
 const handleSubmit = async () => {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
@@ -280,14 +312,17 @@ const handleSubmit = async () => {
       dateEnd: form.dateEnd || null,
       ...(isOther.value && {
         industry: form.industry,
-        tools: form.tools.filter(v => v.trim()),
-        coreBusinessTopics: form.coreBusinessTopics.filter(v => v.trim()),
-        projectMethods: form.projectMethods.filter(v => v.trim()),
-        achievements: form.achievements.filter(v => v.trim()),
+        tools: toPgArray(form.tools.filter(v => v.trim())),
+        coreBusinessTopics: toPgArray(form.coreBusinessTopics.filter(v => v.trim())),
+        projectMethods: toPgArray(form.projectMethods.filter(v => v.trim())),
+        achievements: toPgArray(form.achievements.filter(v => v.trim())),
+        neverRegenerate: true,
       }),
     }
 
     console.log('Portfolio payload:', payload)
+    await sendNewProject(payload);
+
     ElMessage.success('Проект успешно сохранён')
     dialogVisible.value = false
     resetForm()
@@ -296,78 +331,11 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.forms-page {
-  width: 100%;
-}
-
-.tiles-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.form-tile {
-  width: 220px;
-  padding: 28px 20px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e8e8f0;
-  border-top: 3px solid var(--color-violet);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  transition: box-shadow 0.2s, transform 0.2s;
-  user-select: none;
-}
-
-.form-tile:hover {
-  box-shadow: 0 6px 24px rgba(145, 90, 240, 0.15);
-  transform: translateY(-3px);
-}
-
-.tile-title {
-  font-weight: 600;
-  color: var(--color-secondary);
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.tile-desc {
-  font-size: 12px;
-  color: #909399;
-}
+@import '@/styles/forms.css';
 
 .portfolio-form :deep(.el-form-item__label) {
   font-weight: 500;
   color: var(--color-secondary);
   padding-bottom: 4px;
-}
-
-.divider-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-violet);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.array-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.array-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.array-item .el-input {
-  flex: 1;
 }
 </style>

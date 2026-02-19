@@ -100,24 +100,10 @@ watch(() => schemaStore.selectedSchema, loadTables)
 </script>
 
 <style scoped>
-.tables-list {
-  width: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  color: var(--color-secondary);
-}
+@import '@/styles/tables-list.css';
 
 .clickable-table :deep(.el-table__row) {
   cursor: pointer;
-}
-
-.clickable-table :deep(.el-table__row:hover) {
-  background-color: #f5f7fa;
 }
 
 .clickable-table :deep(.el-table__row:hover td) {
