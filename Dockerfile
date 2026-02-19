@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -16,12 +16,11 @@ COPY index.html ./
 # Build
 RUN npm run build
 
-# Serve with a simple HTTP server
-FROM node:18-alpine
-RUN npm install -g serve
-WORKDIR /app
-COPY --from=0 /app/dist ./dist
+# Production: serve with nginx
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 5173
+EXPOSE 80
 
-CMD ["serve", "-s", "dist", "-l", "5173"]
+CMD ["nginx", "-g", "daemon off;"]
